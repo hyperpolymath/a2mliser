@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: PMPL-1.0-or-later
+// Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
+= A2mliser
+Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+:toc: left
+:icons: font
+
+== What Is This?
+
+A2MLiser adds **cryptographic attestation and verification** to any markup,
+configuration, or manifest file — proving authenticity and integrity.
+
+A2ML (Attested Markup Language) embeds attestation chains in documents.
+A2MLiser wraps existing files in A2ML attestation envelopes.
+
+== How It Works
+
+Configure attestation in `a2mliser.toml`. A2MLiser:
+
+1. Analyses existing markup files (YAML, TOML, JSON, XML, Markdown)
+2. Generates A2ML attestation envelopes with cryptographic signatures
+3. Embeds provenance metadata (who created, when, from what source)
+4. Provides verification: any consumer can check authenticity
+5. Supports attestation chains (A attests B attests C)
+
+== Key Value
+
+* **Any file can be attested** — not just code, any artifact
+* **Cryptographic proof** of authenticity and integrity
+* **Provenance chains** — trace any artifact back to its origin
+* **Supply chain security** — verify configs haven't been tampered with
+
+== Architecture
+
+Follows the hyperpolymath -iser pattern:
+manifest -> Idris2 ABI proof -> Zig FFI bridge -> target language codegen.
+Part of the https://github.com/hyperpolymath/iseriser[-iser family].
+
+== Status
+
+**Pre-alpha.** Architecture defined, scaffolding in place, codegen pending.
+
+== License
+
+SPDX-License-Identifier: PMPL-1.0-or-later
