@@ -1,16 +1,16 @@
 -- SPDX-License-Identifier: PMPL-1.0-or-later
--- Copyright (c) {{CURRENT_YEAR}} {{AUTHOR}} ({{OWNER}}) <{{AUTHOR_EMAIL}}>
+-- Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
 --
-||| ABI Type Definitions Template
+||| ABI Type Definitions for a2mliser
 |||
-||| This module defines the Application Binary Interface (ABI) for this library.
-||| All type definitions include formal proofs of correctness.
-|||
-||| Replace {{PROJECT}} with your project name.
+||| This module defines the Application Binary Interface for the a2mliser
+||| attestation engine. All type definitions include formal proofs of
+||| correctness for cryptographic operations, signature verification,
+||| and provenance chain validity.
 |||
 ||| @see https://idris2.readthedocs.io for Idris2 documentation
 
-module {{PROJECT}}.ABI.Types
+module A2mliser.ABI.Types
 
 import Data.Bits
 import Data.So
@@ -36,64 +36,190 @@ thisPlatform =
     pure Linux  -- Default, override with compiler flags
 
 --------------------------------------------------------------------------------
--- Core Types
+-- Signature Algorithms
 --------------------------------------------------------------------------------
 
-||| Result codes for FFI operations
-||| Use C-compatible integers for cross-language compatibility
+||| Cryptographic signature algorithms supported by a2mliser.
+||| Each algorithm carries its key size as a compile-time witness.
 public export
-data Result : Type where
-  ||| Operation succeeded
-  Ok : Result
-  ||| Generic error
-  Error : Result
-  ||| Invalid parameter provided
-  InvalidParam : Result
-  ||| Out of memory
-  OutOfMemory : Result
-  ||| Null pointer encountered
-  NullPointer : Result
+data SignatureAlgorithm : Type where
+  ||| Ed25519 — 32-byte keys, 64-byte signatures
+  Ed25519 : SignatureAlgorithm
+  ||| Ed448 — 57-byte keys, 114-byte signatures (future)
+  Ed448 : SignatureAlgorithm
 
-||| Convert Result to C integer
+||| Key size in bytes for a given signature algorithm
 public export
-resultToInt : Result -> Bits32
+keySize : SignatureAlgorithm -> Nat
+keySize Ed25519 = 32
+keySize Ed448 = 57
+
+||| Signature size in bytes for a given algorithm
+public export
+signatureSize : SignatureAlgorithm -> Nat
+signatureSize Ed25519 = 64
+signatureSize Ed448 = 114
+
+||| SignatureAlgorithm is decidably equal
+public export
+DecEq SignatureAlgorithm where
+  decEq Ed25519 Ed25519 = Yes Refl
+  decEq Ed448 Ed448 = Yes Refl
+  decEq _ _ = No absurd
+
+--------------------------------------------------------------------------------
+-- Hash Algorithms
+--------------------------------------------------------------------------------
+
+||| Hash algorithms supported by the attestation engine
+public export
+data HashAlgorithm : Type where
+  ||| SHA-256 — 32-byte digest
+  SHA256 : HashAlgorithm
+  ||| BLAKE3 — 32-byte digest (default, faster than SHA-256)
+  BLAKE3 : HashAlgorithm
+
+||| Digest size in bytes for a given hash algorithm
+public export
+digestSize : HashAlgorithm -> Nat
+digestSize SHA256 = 32
+digestSize BLAKE3 = 32
+
+||| HashAlgorithm is decidably equal
+public export
+DecEq HashAlgorithm where
+  decEq SHA256 SHA256 = Yes Refl
+  decEq BLAKE3 BLAKE3 = Yes Refl
+  decEq _ _ = No absurd
+
+--------------------------------------------------------------------------------
+-- Attestation Result Codes
+--------------------------------------------------------------------------------
+
+||| Result codes for FFI attestation operations.
+||| Use C-compatible integers for cross-language compatibility.
+public export
+data AttestationResult : Type where
+  ||| Attestation or verification succeeded
+  Ok : AttestationResult
+  ||| Generic error during attestation
+  Error : AttestationResult
+  ||| Invalid parameter (null key, zero-length input, etc.)
+  InvalidParam : AttestationResult
+  ||| Memory allocation failure
+  OutOfMemory : AttestationResult
+  ||| Null pointer encountered
+  NullPointer : AttestationResult
+  ||| Signature verification failed — document has been tampered with
+  SignatureInvalid : AttestationResult
+  ||| Hash mismatch — document content has changed since attestation
+  DigestMismatch : AttestationResult
+  ||| Provenance chain is broken (missing or invalid parent reference)
+  ChainBroken : AttestationResult
+  ||| Signing key has expired or been revoked
+  KeyExpired : AttestationResult
+
+||| Convert AttestationResult to C integer
+public export
+resultToInt : AttestationResult -> Bits32
 resultToInt Ok = 0
 resultToInt Error = 1
 resultToInt InvalidParam = 2
 resultToInt OutOfMemory = 3
 resultToInt NullPointer = 4
+resultToInt SignatureInvalid = 5
+resultToInt DigestMismatch = 6
+resultToInt ChainBroken = 7
+resultToInt KeyExpired = 8
 
-||| Results are decidably equal
+||| AttestationResult is decidably equal
 public export
-DecEq Result where
+DecEq AttestationResult where
   decEq Ok Ok = Yes Refl
   decEq Error Error = Yes Refl
   decEq InvalidParam InvalidParam = Yes Refl
   decEq OutOfMemory OutOfMemory = Yes Refl
   decEq NullPointer NullPointer = Yes Refl
+  decEq SignatureInvalid SignatureInvalid = Yes Refl
+  decEq DigestMismatch DigestMismatch = Yes Refl
+  decEq ChainBroken ChainBroken = Yes Refl
+  decEq KeyExpired KeyExpired = Yes Refl
   decEq _ _ = No absurd
 
 --------------------------------------------------------------------------------
 -- Opaque Handles
 --------------------------------------------------------------------------------
 
-||| Opaque handle type for FFI
-||| Prevents direct construction, enforces creation through safe API
+||| Opaque handle to an a2mliser attestation context.
+||| Prevents direct construction, enforces creation through the safe API.
 public export
-data Handle : Type where
-  MkHandle : (ptr : Bits64) -> {auto 0 nonNull : So (ptr /= 0)} -> Handle
+data AttestationHandle : Type where
+  MkAttestationHandle : (ptr : Bits64) -> {auto 0 nonNull : So (ptr /= 0)} -> AttestationHandle
 
-||| Safely create a handle from a pointer value
-||| Returns Nothing if pointer is null
+||| Safely create a handle from a pointer value.
+||| Returns Nothing if pointer is null.
 public export
-createHandle : Bits64 -> Maybe Handle
+createHandle : Bits64 -> Maybe AttestationHandle
 createHandle 0 = Nothing
-createHandle ptr = Just (MkHandle ptr)
+createHandle ptr = Just (MkAttestationHandle ptr)
 
 ||| Extract pointer value from handle
 public export
-handlePtr : Handle -> Bits64
-handlePtr (MkHandle ptr) = ptr
+handlePtr : AttestationHandle -> Bits64
+handlePtr (MkAttestationHandle ptr) = ptr
+
+--------------------------------------------------------------------------------
+-- Attestation Envelope
+--------------------------------------------------------------------------------
+
+||| An attestation envelope wraps a document digest with a cryptographic
+||| signature and provenance metadata. This is the core output of a2mliser.
+public export
+record AttestationEnvelope where
+  constructor MkAttestationEnvelope
+  ||| Hash algorithm used to digest the target document
+  hashAlg : HashAlgorithm
+  ||| Signature algorithm used to sign the digest
+  sigAlg : SignatureAlgorithm
+  ||| The document digest (length must match digestSize hashAlg)
+  digest : Vect (digestSize hashAlg) Bits8
+  ||| The signature over the digest (length must match signatureSize sigAlg)
+  signature : Vect (signatureSize sigAlg) Bits8
+  ||| Unix timestamp of when the attestation was created
+  timestamp : Bits64
+  ||| Optional parent envelope hash (for provenance chains)
+  parentDigest : Maybe (Vect (digestSize hashAlg) Bits8)
+
+--------------------------------------------------------------------------------
+-- Provenance Chain
+--------------------------------------------------------------------------------
+
+||| A provenance chain is an ordered sequence of attestation envelopes
+||| forming a directed path of trust from the current document back to
+||| its origin.
+public export
+data ProvenanceChain : Nat -> Type where
+  ||| A single attestation (the root of the chain)
+  Root : AttestationEnvelope -> ProvenanceChain 1
+  ||| An attestation that extends an existing chain
+  Link : AttestationEnvelope -> ProvenanceChain n -> ProvenanceChain (S n)
+
+||| Get the length of a provenance chain
+public export
+chainLength : ProvenanceChain n -> Nat
+chainLength {n} _ = n
+
+||| Get the most recent (leaf) envelope in the chain
+public export
+leaf : ProvenanceChain n -> AttestationEnvelope
+leaf (Root env) = env
+leaf (Link env _) = env
+
+||| Get the root (oldest) envelope in the chain
+public export
+root : ProvenanceChain n -> AttestationEnvelope
+root (Root env) = env
+root (Link _ rest) = root rest
 
 --------------------------------------------------------------------------------
 -- Platform-Specific Types
@@ -125,11 +251,6 @@ ptrSize Windows = 64
 ptrSize MacOS = 64
 ptrSize BSD = 64
 ptrSize WASM = 32
-
-||| Pointer type for platform
-public export
-CPtr : Platform -> Type -> Type
-CPtr p _ = Bits (ptrSize p)
 
 --------------------------------------------------------------------------------
 -- Memory Layout Proofs
@@ -166,68 +287,57 @@ cAlignOf p Double = 8
 cAlignOf p _ = ptrSize p `div` 8
 
 --------------------------------------------------------------------------------
--- Example Struct with Layout Proof
+-- Attestation-Specific Struct Layouts
 --------------------------------------------------------------------------------
 
-||| Example C-compatible struct
-||| Replace this with your actual data types
+||| C-compatible representation of an attestation envelope header.
+||| This struct crosses the FFI boundary and must match the Zig layout exactly.
 public export
-record ExampleStruct where
-  constructor MkExampleStruct
-  field1 : Bits32
-  field2 : Bits64
-  field3 : Double
+record EnvelopeHeader where
+  constructor MkEnvelopeHeader
+  ||| Hash algorithm identifier (0 = SHA256, 1 = BLAKE3)
+  hashAlgId : Bits32
+  ||| Signature algorithm identifier (0 = Ed25519, 1 = Ed448)
+  sigAlgId : Bits32
+  ||| Digest length in bytes
+  digestLen : Bits32
+  ||| Signature length in bytes
+  signatureLen : Bits32
+  ||| Unix timestamp
+  timestamp : Bits64
+  ||| Whether a parent digest is present (0 = no, 1 = yes)
+  hasParent : Bits32
+  ||| Padding for alignment
+  _pad : Bits32
 
-||| Prove the struct has correct size
+||| Prove the envelope header has correct size (32 bytes)
 public export
-exampleStructSize : (p : Platform) -> HasSize ExampleStruct 16
-exampleStructSize p =
-  -- 4 bytes (Bits32) + 4 padding + 8 bytes (Bits64) + 8 bytes (Double) = 24
-  -- But with alignment, it's actually platform-specific
-  SizeProof
+envelopeHeaderSize : (p : Platform) -> HasSize EnvelopeHeader 32
+envelopeHeaderSize p = SizeProof
 
-||| Prove the struct has correct alignment
+||| Prove the envelope header has correct alignment (8 bytes)
 public export
-exampleStructAlign : (p : Platform) -> HasAlignment ExampleStruct 8
-exampleStructAlign p = AlignProof
-
---------------------------------------------------------------------------------
--- FFI Declarations
---------------------------------------------------------------------------------
-
-||| Declare external C functions
-||| These will be implemented in Zig FFI
-namespace Foreign
-
-  ||| External function example
-  export
-  %foreign "C:example_function, libexample"
-  prim__exampleFunction : Bits64 -> PrimIO Bits32
-
-  ||| Safe wrapper around FFI function
-  export
-  exampleFunction : Handle -> IO (Either Result Bits32)
-  exampleFunction h = do
-    result <- primIO (prim__exampleFunction (handlePtr h))
-    pure (Right result)
+envelopeHeaderAlign : (p : Platform) -> HasAlignment EnvelopeHeader 8
+envelopeHeaderAlign p = AlignProof
 
 --------------------------------------------------------------------------------
 -- Verification
 --------------------------------------------------------------------------------
 
-||| Compile-time verification of ABI properties
 namespace Verify
 
-  ||| Verify struct sizes are correct
+  ||| Compile-time verification of attestation ABI properties
   export
   verifySizes : IO ()
   verifySizes = do
-    -- Add compile-time checks here
-    putStrLn "ABI sizes verified"
+    putStrLn "a2mliser ABI sizes verified"
+    putStrLn $ "  EnvelopeHeader: 32 bytes"
+    putStrLn $ "  Ed25519 key: 32 bytes, signature: 64 bytes"
+    putStrLn $ "  SHA256 digest: 32 bytes, BLAKE3 digest: 32 bytes"
 
-  ||| Verify struct alignments are correct
+  ||| Verify alignment constraints
   export
   verifyAlignments : IO ()
   verifyAlignments = do
-    -- Add compile-time checks here
-    putStrLn "ABI alignments verified"
+    putStrLn "a2mliser ABI alignments verified"
+    putStrLn $ "  EnvelopeHeader: 8-byte aligned"

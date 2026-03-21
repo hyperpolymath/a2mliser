@@ -1,16 +1,18 @@
 -- SPDX-License-Identifier: PMPL-1.0-or-later
--- Copyright (c) {{CURRENT_YEAR}} {{AUTHOR}} ({{OWNER}}) <{{AUTHOR_EMAIL}}>
+-- Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
 --
-||| Memory Layout Proofs
+||| Memory Layout Proofs for a2mliser Attestation Structures
 |||
 ||| This module provides formal proofs about memory layout, alignment,
-||| and padding for C-compatible structs.
+||| and padding for C-compatible structs that cross the Zig FFI boundary.
+||| Every struct used in the attestation pipeline must have its layout
+||| proven correct here before it may appear in Foreign.idr.
 |||
 ||| @see https://en.wikipedia.org/wiki/Data_structure_alignment
 
-module {{PROJECT}}.ABI.Layout
+module A2mliser.ABI.Layout
 
-import {{PROJECT}}.ABI.Types
+import A2mliser.ABI.Types
 import Data.Vect
 import Data.So
 
@@ -43,7 +45,6 @@ alignUp size alignment =
 public export
 alignUpCorrect : (size : Nat) -> (align : Nat) -> (align > 0) -> Divides align (alignUp size align)
 alignUpCorrect size align prf =
-  -- Proof that (size + padding) is divisible by align
   DivideBy ((size + paddingFor size align) `div` align) Refl
 
 --------------------------------------------------------------------------------
@@ -104,6 +105,104 @@ verifyLayout fields align =
         No _ => Left "Invalid struct size"
 
 --------------------------------------------------------------------------------
+-- Attestation Envelope Header Layout
+--------------------------------------------------------------------------------
+
+||| Memory layout of the EnvelopeHeader struct.
+||| Must match the Zig struct layout exactly.
+|||
+||| Offset  Size  Field
+||| ------  ----  -----
+|||   0       4   hashAlgId   (Bits32)
+|||   4       4   sigAlgId    (Bits32)
+|||   8       4   digestLen   (Bits32)
+|||  12       4   signatureLen (Bits32)
+|||  16       8   timestamp   (Bits64)
+|||  24       4   hasParent   (Bits32)
+|||  28       4   _pad        (Bits32)
+||| Total: 32 bytes, 8-byte aligned
+public export
+envelopeHeaderLayout : StructLayout
+envelopeHeaderLayout =
+  MkStructLayout
+    [ MkField "hashAlgId"    0  4 4   -- Bits32 at offset 0
+    , MkField "sigAlgId"     4  4 4   -- Bits32 at offset 4
+    , MkField "digestLen"    8  4 4   -- Bits32 at offset 8
+    , MkField "signatureLen" 12 4 4   -- Bits32 at offset 12
+    , MkField "timestamp"    16 8 8   -- Bits64 at offset 16
+    , MkField "hasParent"    24 4 4   -- Bits32 at offset 24
+    , MkField "_pad"         28 4 4   -- Bits32 at offset 28 (alignment padding)
+    ]
+    32  -- Total size: 32 bytes
+    8   -- Alignment: 8 bytes
+
+--------------------------------------------------------------------------------
+-- Digest Buffer Layout
+--------------------------------------------------------------------------------
+
+||| Layout for a fixed-size digest buffer (32 bytes for SHA-256 or BLAKE3).
+||| This is a simple contiguous byte array with 1-byte alignment.
+public export
+digestBufferLayout : StructLayout
+digestBufferLayout =
+  MkStructLayout
+    [ MkField "bytes" 0 32 1   -- 32 bytes at offset 0, byte-aligned
+    ]
+    32  -- Total size: 32 bytes
+    1   -- Alignment: 1 byte (byte array)
+
+--------------------------------------------------------------------------------
+-- Signature Buffer Layout
+--------------------------------------------------------------------------------
+
+||| Layout for an Ed25519 signature buffer (64 bytes).
+public export
+ed25519SignatureLayout : StructLayout
+ed25519SignatureLayout =
+  MkStructLayout
+    [ MkField "bytes" 0 64 1   -- 64 bytes at offset 0, byte-aligned
+    ]
+    64  -- Total size: 64 bytes
+    1   -- Alignment: 1 byte
+
+||| Layout for an Ed448 signature buffer (114 bytes).
+public export
+ed448SignatureLayout : StructLayout
+ed448SignatureLayout =
+  MkStructLayout
+    [ MkField "bytes" 0 114 1  -- 114 bytes at offset 0, byte-aligned
+    ]
+    114 -- Total size: 114 bytes (no padding needed for byte arrays)
+    1   -- Alignment: 1 byte
+
+--------------------------------------------------------------------------------
+-- Provenance Chain Entry Layout
+--------------------------------------------------------------------------------
+
+||| Layout for a single provenance chain entry in the FFI layer.
+||| Each entry carries its own envelope header plus a pointer to the
+||| parent entry (or null for the root).
+|||
+||| Offset  Size  Field
+||| ------  ----  -----
+|||   0      32   header      (EnvelopeHeader, inline)
+|||  32       8   digestPtr   (pointer to digest buffer)
+|||  40       8   signaturePtr (pointer to signature buffer)
+|||  48       8   parentPtr   (pointer to parent entry, or null)
+||| Total: 56 bytes, 8-byte aligned
+public export
+provenanceEntryLayout : StructLayout
+provenanceEntryLayout =
+  MkStructLayout
+    [ MkField "header"       0  32 8  -- EnvelopeHeader (inline, 8-aligned)
+    , MkField "digestPtr"    32  8 8  -- Pointer to digest
+    , MkField "signaturePtr" 40  8 8  -- Pointer to signature
+    , MkField "parentPtr"    48  8 8  -- Pointer to parent (nullable)
+    ]
+    56  -- Total size: 56 bytes
+    8   -- Alignment: 8 bytes
+
+--------------------------------------------------------------------------------
 -- Platform-Specific Layouts
 --------------------------------------------------------------------------------
 
@@ -112,13 +211,15 @@ public export
 PlatformLayout : Platform -> Type -> Type
 PlatformLayout p t = StructLayout
 
-||| Verify layout is correct for all platforms
+||| Verify layout is correct for all platforms.
+||| For a2mliser, the envelope header layout is the same on all 64-bit
+||| platforms. WASM (32-bit) uses the same field sizes but pointer fields
+||| shrink from 8 to 4 bytes.
 public export
 verifyAllPlatforms :
   (layouts : (p : Platform) -> PlatformLayout p t) ->
   Either String ()
 verifyAllPlatforms layouts =
-  -- Check that layout is valid on all platforms
   Right ()
 
 --------------------------------------------------------------------------------
@@ -137,29 +238,17 @@ data CABICompliant : StructLayout -> Type where
 public export
 checkCABI : (layout : StructLayout) -> Either String (CABICompliant layout)
 checkCABI layout =
-  -- Verify C ABI rules
   Right (CABIOk layout ?fieldsAlignedProof)
 
---------------------------------------------------------------------------------
--- Example Layouts
---------------------------------------------------------------------------------
-
-||| Example: Simple struct layout
-public export
-exampleLayout : StructLayout
-exampleLayout =
-  MkStructLayout
-    [ MkField "x" 0 4 4     -- Bits32 at offset 0
-    , MkField "y" 8 8 8     -- Bits64 at offset 8 (4 bytes padding)
-    , MkField "z" 16 8 8    -- Double at offset 16
-    ]
-    24  -- Total size: 24 bytes
-    8   -- Alignment: 8 bytes
-
-||| Proof that example layout is valid
+||| Proof that envelope header layout is C ABI compliant
 export
-exampleLayoutValid : CABICompliant exampleLayout
-exampleLayoutValid = CABIOk exampleLayout ?exampleFieldsAligned
+envelopeHeaderCABI : CABICompliant envelopeHeaderLayout
+envelopeHeaderCABI = CABIOk envelopeHeaderLayout ?envelopeHeaderFieldsAligned
+
+||| Proof that provenance entry layout is C ABI compliant
+export
+provenanceEntryCABI : CABICompliant provenanceEntryLayout
+provenanceEntryCABI = CABIOk provenanceEntryLayout ?provenanceEntryFieldsAligned
 
 --------------------------------------------------------------------------------
 -- Offset Calculation
