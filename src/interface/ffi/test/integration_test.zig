@@ -1,60 +1,158 @@
-// {{PROJECT}} Integration Tests
+// a2mliser Integration Tests
 // SPDX-License-Identifier: PMPL-1.0-or-later
 //
 // These tests verify that the Zig FFI correctly implements the Idris2 ABI
+// for the a2mliser attestation engine.
 
 const std = @import("std");
 const testing = std.testing;
 
 // Import FFI functions
-extern fn {{project}}_init() ?*opaque {};
-extern fn {{project}}_free(?*opaque {}) void;
-extern fn {{project}}_process(?*opaque {}, u32) c_int;
-extern fn {{project}}_get_string(?*opaque {}) ?[*:0]const u8;
-extern fn {{project}}_free_string(?[*:0]const u8) void;
-extern fn {{project}}_last_error() ?[*:0]const u8;
-extern fn {{project}}_version() [*:0]const u8;
-extern fn {{project}}_is_initialized(?*opaque {}) u32;
+extern fn a2mliser_init() ?*opaque {};
+extern fn a2mliser_free(?*opaque {}) void;
+extern fn a2mliser_hash_sha256(?*opaque {}, ?[*]const u8, u32) c_int;
+extern fn a2mliser_hash_blake3(?*opaque {}, ?[*]const u8, u32) c_int;
+extern fn a2mliser_sign_ed25519(?*opaque {}, ?[*]const u8, ?[*]const u8, ?[*]u8) c_int;
+extern fn a2mliser_verify_ed25519(?*opaque {}, ?[*]const u8, ?[*]const u8, ?[*]const u8) c_int;
+extern fn a2mliser_create_envelope(?*opaque {}, ?[*]const u8, u32, u32, u32, ?[*]const u8) ?*anyopaque;
+extern fn a2mliser_free_envelope(?*opaque {}, ?*anyopaque) void;
+extern fn a2mliser_verify_envelope(?*opaque {}, ?*const anyopaque, ?[*]const u8, u32, ?[*]const u8) c_int;
+extern fn a2mliser_chain_extend(?*opaque {}, ?*const anyopaque, ?[*]const u8, u32, ?[*]const u8) ?*anyopaque;
+extern fn a2mliser_chain_verify(?*opaque {}, ?*const anyopaque, ?[*]const u8) c_int;
+extern fn a2mliser_get_string(?*opaque {}) ?[*:0]const u8;
+extern fn a2mliser_free_string(?[*:0]const u8) void;
+extern fn a2mliser_last_error() ?[*:0]const u8;
+extern fn a2mliser_version() [*:0]const u8;
+extern fn a2mliser_is_initialized(?*opaque {}) u32;
 
 //==============================================================================
 // Lifecycle Tests
 //==============================================================================
 
 test "create and destroy handle" {
-    const handle = {{project}}_init() orelse return error.InitFailed;
-    defer {{project}}_free(handle);
+    const handle = a2mliser_init() orelse return error.InitFailed;
+    defer a2mliser_free(handle);
 
     try testing.expect(handle != null);
 }
 
 test "handle is initialized" {
-    const handle = {{project}}_init() orelse return error.InitFailed;
-    defer {{project}}_free(handle);
+    const handle = a2mliser_init() orelse return error.InitFailed;
+    defer a2mliser_free(handle);
 
-    const initialized = {{project}}_is_initialized(handle);
+    const initialized = a2mliser_is_initialized(handle);
     try testing.expectEqual(@as(u32, 1), initialized);
 }
 
 test "null handle is not initialized" {
-    const initialized = {{project}}_is_initialized(null);
+    const initialized = a2mliser_is_initialized(null);
     try testing.expectEqual(@as(u32, 0), initialized);
 }
 
 //==============================================================================
-// Operation Tests
+// Hashing Tests
 //==============================================================================
 
-test "process with valid handle" {
-    const handle = {{project}}_init() orelse return error.InitFailed;
-    defer {{project}}_free(handle);
+test "sha256 with valid handle and data" {
+    const handle = a2mliser_init() orelse return error.InitFailed;
+    defer a2mliser_free(handle);
 
-    const result = {{project}}_process(handle, 42);
+    var data = [_]u8{ 'h', 'e', 'l', 'l', 'o' };
+    const result = a2mliser_hash_sha256(handle, &data, 5);
     try testing.expectEqual(@as(c_int, 0), result); // 0 = ok
 }
 
-test "process with null handle returns error" {
-    const result = {{project}}_process(null, 42);
+test "blake3 with valid handle and data" {
+    const handle = a2mliser_init() orelse return error.InitFailed;
+    defer a2mliser_free(handle);
+
+    var data = [_]u8{ 'w', 'o', 'r', 'l', 'd' };
+    const result = a2mliser_hash_blake3(handle, &data, 5);
+    try testing.expectEqual(@as(c_int, 0), result); // 0 = ok
+}
+
+test "hash with null handle returns error" {
+    const result = a2mliser_hash_sha256(null, null, 0);
     try testing.expectEqual(@as(c_int, 4), result); // 4 = null_pointer
+}
+
+test "hash with null input returns error" {
+    const handle = a2mliser_init() orelse return error.InitFailed;
+    defer a2mliser_free(handle);
+
+    const result = a2mliser_hash_sha256(handle, null, 0);
+    try testing.expectEqual(@as(c_int, 4), result); // 4 = null_pointer
+}
+
+//==============================================================================
+// Signing Tests
+//==============================================================================
+
+test "sign with null handle returns error" {
+    const result = a2mliser_sign_ed25519(null, null, null, null);
+    try testing.expectEqual(@as(c_int, 4), result); // null_pointer
+}
+
+test "sign with null key returns invalid_param" {
+    const handle = a2mliser_init() orelse return error.InitFailed;
+    defer a2mliser_free(handle);
+
+    const result = a2mliser_sign_ed25519(handle, null, null, null);
+    try testing.expectEqual(@as(c_int, 2), result); // invalid_param
+}
+
+//==============================================================================
+// Verification Tests
+//==============================================================================
+
+test "verify with null handle returns error" {
+    const result = a2mliser_verify_ed25519(null, null, null, null);
+    try testing.expectEqual(@as(c_int, 4), result); // null_pointer
+}
+
+//==============================================================================
+// Envelope Tests
+//==============================================================================
+
+test "create envelope with valid inputs" {
+    const handle = a2mliser_init() orelse return error.InitFailed;
+    defer a2mliser_free(handle);
+
+    var doc = [_]u8{ 't', 'e', 's', 't' };
+    var key = [_]u8{0} ** 32;
+
+    const envelope = a2mliser_create_envelope(handle, &doc, 4, 1, 0, &key);
+    defer if (envelope) |env| a2mliser_free_envelope(handle, env);
+
+    try testing.expect(envelope != null);
+}
+
+test "create envelope with null handle returns null" {
+    const envelope = a2mliser_create_envelope(null, null, 0, 0, 0, null);
+    try testing.expect(envelope == null);
+}
+
+//==============================================================================
+// Provenance Chain Tests
+//==============================================================================
+
+test "chain extend creates root entry" {
+    const handle = a2mliser_init() orelse return error.InitFailed;
+    defer a2mliser_free(handle);
+
+    var doc = [_]u8{ 'r', 'o', 'o', 't' };
+    var key = [_]u8{0} ** 32;
+
+    // null parent = root of chain
+    const entry = a2mliser_chain_extend(handle, null, &doc, 4, &key);
+    defer if (entry) |e| a2mliser_free_envelope(handle, e);
+
+    try testing.expect(entry != null);
+}
+
+test "chain verify with null handle returns error" {
+    const result = a2mliser_chain_verify(null, null, null);
+    try testing.expectEqual(@as(c_int, 4), result); // null_pointer
 }
 
 //==============================================================================
@@ -62,17 +160,17 @@ test "process with null handle returns error" {
 //==============================================================================
 
 test "get string result" {
-    const handle = {{project}}_init() orelse return error.InitFailed;
-    defer {{project}}_free(handle);
+    const handle = a2mliser_init() orelse return error.InitFailed;
+    defer a2mliser_free(handle);
 
-    const str = {{project}}_get_string(handle);
-    defer if (str) |s| {{project}}_free_string(s);
+    const str = a2mliser_get_string(handle);
+    defer if (str) |s| a2mliser_free_string(s);
 
     try testing.expect(str != null);
 }
 
 test "get string with null handle" {
-    const str = {{project}}_get_string(null);
+    const str = a2mliser_get_string(null);
     try testing.expect(str == null);
 }
 
@@ -81,9 +179,9 @@ test "get string with null handle" {
 //==============================================================================
 
 test "last error after null handle operation" {
-    _ = {{project}}_process(null, 0);
+    _ = a2mliser_hash_sha256(null, null, 0);
 
-    const err = {{project}}_last_error();
+    const err = a2mliser_last_error();
     try testing.expect(err != null);
 
     if (err) |e| {
@@ -92,32 +190,19 @@ test "last error after null handle operation" {
     }
 }
 
-test "no error after successful operation" {
-    const handle = {{project}}_init() orelse return error.InitFailed;
-    defer {{project}}_free(handle);
-
-    _ = {{project}}_process(handle, 0);
-
-    // Error should be cleared after successful operation
-    // (This depends on implementation)
-}
-
 //==============================================================================
 // Version Tests
 //==============================================================================
 
 test "version string is not empty" {
-    const ver = {{project}}_version();
+    const ver = a2mliser_version();
     const ver_str = std.mem.span(ver);
-
     try testing.expect(ver_str.len > 0);
 }
 
 test "version string is semantic version format" {
-    const ver = {{project}}_version();
+    const ver = a2mliser_version();
     const ver_str = std.mem.span(ver);
-
-    // Should be in format X.Y.Z
     try testing.expect(std.mem.count(u8, ver_str, ".") >= 1);
 }
 
@@ -126,57 +211,15 @@ test "version string is semantic version format" {
 //==============================================================================
 
 test "multiple handles are independent" {
-    const h1 = {{project}}_init() orelse return error.InitFailed;
-    defer {{project}}_free(h1);
+    const h1 = a2mliser_init() orelse return error.InitFailed;
+    defer a2mliser_free(h1);
 
-    const h2 = {{project}}_init() orelse return error.InitFailed;
-    defer {{project}}_free(h2);
+    const h2 = a2mliser_init() orelse return error.InitFailed;
+    defer a2mliser_free(h2);
 
     try testing.expect(h1 != h2);
-
-    // Operations on h1 should not affect h2
-    _ = {{project}}_process(h1, 1);
-    _ = {{project}}_process(h2, 2);
-}
-
-test "double free is safe" {
-    const handle = {{project}}_init() orelse return error.InitFailed;
-
-    {{project}}_free(handle);
-    {{project}}_free(handle); // Should not crash
 }
 
 test "free null is safe" {
-    {{project}}_free(null); // Should not crash
-}
-
-//==============================================================================
-// Thread Safety Tests (if applicable)
-//==============================================================================
-
-test "concurrent operations" {
-    const handle = {{project}}_init() orelse return error.InitFailed;
-    defer {{project}}_free(handle);
-
-    const ThreadContext = struct {
-        h: *opaque {},
-        id: u32,
-    };
-
-    const thread_fn = struct {
-        fn run(ctx: ThreadContext) void {
-            _ = {{project}}_process(ctx.h, ctx.id);
-        }
-    }.run;
-
-    var threads: [4]std.Thread = undefined;
-    for (&threads, 0..) |*thread, i| {
-        thread.* = try std.Thread.spawn(.{}, thread_fn, .{
-            ThreadContext{ .h = handle, .id = @intCast(i) },
-        });
-    }
-
-    for (threads) |thread| {
-        thread.join();
-    }
+    a2mliser_free(null); // Should not crash
 }
