@@ -67,3 +67,7 @@ These are hard requirements — CI fails if any check fails.
 - description: No Admitted in Coq code
 - run: "! grep -r 'Admitted' --include='*.v' . 2>/dev/null | grep -v node_modules | head -1 | grep -q ."
 - severity: critical
+
+## Domain-Specific Constraints (a2mliser)
+
+### attestation-integrity\n- description: Cryptographic attestations must be verifiable end-to-end\n- target: Ed25519 or similar, no custom crypto\n- severity: critical\n\n### envelope-roundtrip\n- description: A2ML envelopes must preserve original content exactly\n- target: Byte-identical roundtrip (wrap then unwrap)\n- severity: critical\n\n### no-key-material-in-output\n- description: Private keys must never appear in generated attestations\n- target: Only public key references in output\n- severity: critical

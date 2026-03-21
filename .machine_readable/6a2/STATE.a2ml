@@ -12,28 +12,29 @@
     (name "a2mliser")
     (description "Cryptographic attestation engine for markup and configuration files via A2ML envelopes")
     (status "scaffold-documented")
-    (priority "mid-tier -iser — foundational for supply chain security")
-    (ecosystem "-iser family (https://github.com/hyperpolymath/iseriser)"))
+    (priority "—")
+    (ecosystem "-iser family (https://github.com/hyperpolymath/iseriser)")
+    (domain "Cryptographic attestation for markup files"))
 
   (current-position
-    (phase "phase-0-complete")
+    (phase "scaffold-documented")
     (completion-percentage 10)
-    (milestone "Architecture documented, CLI scaffolded, ABI/FFI definitions written with attestation-specific types"))
+    (milestone "Architecture defined, CLI scaffolded, RSR template complete — implementation pending"))
 
   (route-to-mvp
-    (step 1 "Implement BLAKE3 and SHA-256 hashing in Zig FFI (crypto primitives)")
-    (step 2 "Implement Ed25519 signing/verification in Zig FFI")
-    (step 3 "Wire Rust codegen to call Zig FFI via generated C headers")
-    (step 4 "Produce .a2ml sidecar attestation envelopes for TOML files")
-    (step 5 "Implement envelope verification (recompute digest, verify signature)")
-    (step 6 "Add provenance chain support (parent references, chain walking)")
-    (step 7 "YAML and JSON format handlers")
-    (step 8 "Idris2 formal proofs for signature correctness and chain validity"))
+    (step 1 "Phase 0 — scaffold and documentation [COMPLETE]")
+    (step 2 "Phase 1 — CLI skeleton and manifest parser")
+    (step 3 "Phase 2 — A2ML envelope parsing and generation")
+    (step 4 "Phase 3 — cryptographic attestation (Ed25519)")
+    (step 5 "Phase 4 — Idris2 ABI proofs for envelope integrity")
+    (step 6 "Phase 5 — Zig FFI bridge for crypto operations")
+    (step 7 "Phase 6 — integration tests and examples")
+    (step 8 "Phase 7 — first release (v0.1.0)"))
 
   (blockers-and-issues
-    (none "Project is in scaffold phase with documentation complete — no blockers"))
+    (none "Scaffold only — implementation not yet started"))
 
   (critical-next-actions
-    (action "Implement BLAKE3 hashing in Zig FFI src/interface/ffi/src/main.zig")
-    (action "Implement Ed25519 signing in Zig FFI")
-    (action "Wire a2mliser generate command to produce real .a2ml envelopes")))
+    (action "Begin Phase 1 — implement CLI skeleton and manifest parser")
+    (action "Define A2ML envelope format for attestation")
+    (action "Evaluate Ed25519 crate options for Rust implementation")))
