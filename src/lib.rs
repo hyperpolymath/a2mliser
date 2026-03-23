@@ -4,7 +4,7 @@
 pub mod abi;
 pub mod codegen;
 pub mod manifest;
-pub use manifest::{load_manifest, validate, Manifest};
+pub use manifest::{Manifest, load_manifest, validate};
 
 pub fn generate(manifest_path: &str, output_dir: &str) -> anyhow::Result<()> {
     let m = load_manifest(manifest_path)?;

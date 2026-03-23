@@ -35,24 +35,37 @@ pub struct Options {
 }
 
 pub fn load_manifest(path: &str) -> Result<Manifest> {
-    let content = std::fs::read_to_string(path).with_context(|| format!("Failed to read: {}", path))?;
+    let content =
+        std::fs::read_to_string(path).with_context(|| format!("Failed to read: {}", path))?;
     toml::from_str(&content).with_context(|| format!("Failed to parse: {}", path))
 }
 
 pub fn validate(manifest: &Manifest) -> Result<()> {
-    if manifest.workload.name.is_empty() { anyhow::bail!("workload.name required"); }
-    if manifest.workload.entry.is_empty() { anyhow::bail!("workload.entry required"); }
+    if manifest.workload.name.is_empty() {
+        anyhow::bail!("workload.name required");
+    }
+    if manifest.workload.entry.is_empty() {
+        anyhow::bail!("workload.entry required");
+    }
     Ok(())
 }
 
 pub fn init_manifest(path: &str) -> Result<()> {
     let p = Path::new(path).join("a2mliser.toml");
-    if p.exists() { anyhow::bail!("a2mliser.toml already exists"); }
-    std::fs::write(&p, "# a2mliser manifest\n[workload]\nname = \"my-workload\"\nentry = \"src/lib.rs::process\"\n\n[data]\ninput-type = \"Vec<Item>\"\noutput-type = \"Vec<Result>\"\n")?;
+    if p.exists() {
+        anyhow::bail!("a2mliser.toml already exists");
+    }
+    std::fs::write(
+        &p,
+        "# a2mliser manifest\n[workload]\nname = \"my-workload\"\nentry = \"src/lib.rs::process\"\n\n[data]\ninput-type = \"Vec<Item>\"\noutput-type = \"Vec<Result>\"\n",
+    )?;
     println!("Created {}", p.display());
     Ok(())
 }
 
 pub fn print_info(m: &Manifest) {
-    println!("=== {} ===\nEntry: {}\nInput: {}\nOutput: {}", m.workload.name, m.workload.entry, m.data.input_type, m.data.output_type);
+    println!(
+        "=== {} ===\nEntry: {}\nInput: {}\nOutput: {}",
+        m.workload.name, m.workload.entry, m.data.input_type, m.data.output_type
+    );
 }
