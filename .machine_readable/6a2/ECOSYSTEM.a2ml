@@ -1,41 +1,20 @@
-;; SPDX-License-Identifier: PMPL-1.0-or-later
-;; Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
-;; ECOSYSTEM.a2ml — Ecosystem position for a2mliser
+# SPDX-License-Identifier: PMPL-1.0-or-later
+# Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
+#
+# ECOSYSTEM.a2ml — A2mliser ecosystem position
+[metadata]
+version = "0.1.0"
+last-updated = "2026-04-11"
 
-(ecosystem
-  (version "0.1.0")
-  (name "a2mliser")
-  (type "attestation-tool")
-  (purpose "Cryptographic attestation engine — signs markup and config files with A2ML envelopes, providing provenance chains and tamper detection")
+[project]
+name = "A2mliser"
+purpose = "Cryptographic attestation engine — signs markup and config files with A2ML envelopes, providing provenance chains and tamper detection"
+role = "attestation-tool"
 
-  (position-in-ecosystem
-    (family "-iser acceleration frameworks")
-    (meta-framework "iseriser")
-    (relationship "sibling — unique role as the attestation/trust layer")
-    (distinguishing-trait "Other -isers generate code; a2mliser generates cryptographic trust. It can attest the output of any other -iser."))
+[position-in-ecosystem]
+category = ""
 
-  (related-projects
-    (project "iseriser"
-      (relationship "meta-framework")
-      (description "Generates new -iser project scaffolding"))
-    (project "k9iser"
-      (relationship "upstream-consumer")
-      (description "K9 contract validation. a2mliser attests files after K9 validation passes, proving both conformance and integrity."))
-    (project "typedqliser"
-      (relationship "upstream-consumer")
-      (description "Type-safe query generation. a2mliser attests generated query wrappers, proving they came from a specific schema version."))
-    (project "verisimiser"
-      (relationship "downstream-store")
-      (description "VeriSimDB augmentation. Attestation records can be persisted as octads for tamper-evident audit trails."))
-    (project "proven"
-      (relationship "dependency")
-      (description "Shared Idris2 verified library — provides common proof infrastructure used by a2mliser's ABI layer."))
-    (project "typell"
-      (relationship "dependency")
-      (description "Type theory engine — potential future integration for typed attestation predicates."))
-    (project "boj-server"
-      (relationship "distribution")
-      (description "BoJ cartridge for a2mliser exposes attestation as an MCP tool."))
-    (project "panll"
-      (relationship "visualisation")
-      (description "PanLL panel for attestation status dashboard — shows chain health, recent attestations, key expiry."))))
+[related-projects]
+projects = [
+  # No related projects recorded
+]

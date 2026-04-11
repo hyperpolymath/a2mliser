@@ -1,59 +1,27 @@
-;; SPDX-License-Identifier: PMPL-1.0-or-later
-;; Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
-;; META.a2ml — Meta-level information for a2mliser
+# SPDX-License-Identifier: PMPL-1.0-or-later
+# Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
+#
+# META.a2ml — A2mliser meta-level information
+[metadata]
+version = "0.1.0"
+last-updated = "2026-03-21"
 
-(meta
-  (version "0.1.0")
-  (last-updated "2026-03-21")
+[project-info]
+license = "PMPL-1.0-or-later"
+author = "Jonathan D.A. Jewell (hyperpolymath)"
 
-  (architecture-decisions
-    (adr "001-attestation-envelope"
-      (status "accepted")
-      (context "Need a standard format for cryptographic attestation of arbitrary files")
-      (decision "A2ML envelope: sidecar .a2ml file containing hash algorithm, digest, signature, timestamp, and optional parent reference for provenance chains")
-      (consequences "Any file format can be attested without modification; verification is independent of file type"))
+[architecture-decisions]
+decisions = [
+  # No ADRs recorded
+]
 
-    (adr "002-hash-algorithms"
-      (status "accepted")
-      (context "Need fast and secure digest computation for attestation")
-      (decision "Support BLAKE3 (default, faster) and SHA-256 (widely trusted). Both produce 32-byte digests.")
-      (consequences "Uniform digest size simplifies envelope layout; BLAKE3 gives 3-10x speedup over SHA-256"))
+[development-practices]
+versioning = "SemVer"
+documentation = "AsciiDoc"
+build-tool = "just"
 
-    (adr "003-signature-algorithm"
-      (status "accepted")
-      (context "Need a modern, secure signing algorithm for attestation envelopes")
-      (decision "Ed25519 as primary (32-byte keys, 64-byte signatures). Ed448 reserved for future high-security mode.")
-      (consequences "Small keys and signatures keep envelopes compact; Ed25519 is widely supported"))
-
-    (adr "004-abi-ffi-standard"
-      (status "accepted")
-      (context "Need verified interop between Rust CLI and crypto primitives")
-      (decision "Idris2 ABI for formal proofs of signature correctness and chain validity; Zig FFI for C-ABI crypto implementation")
-      (consequences "Compile-time correctness guarantees; zero runtime overhead from proofs; Zig gives access to std.crypto"))
-
-    (adr "005-structure-aware-signing"
-      (status "proposed")
-      (context "Opaque-blob signing loses granularity — cannot attest individual config sections")
-      (decision "Parse files into structural units (TOML tables, YAML documents, JSON objects) and sign at chosen granularity")
-      (consequences "More complex implementation but enables partial verification and selective re-attestation"))
-
-    (adr "006-provenance-chains"
-      (status "proposed")
-      (context "Single attestations cannot express chain-of-custody or successive modifications")
-      (decision "Each envelope may reference a parent envelope hash, forming a DAG of trust from leaf to root")
-      (consequences "Full audit trail for config evolution; can verify entire history or just latest state")))
-
-  (development-practices
-    (language "Rust" (purpose "CLI orchestration, manifest parsing, codegen"))
-    (language "Idris2" (purpose "ABI formal proofs — signature correctness, chain validity, memory layout"))
-    (language "Zig" (purpose "FFI C-ABI bridge — crypto primitives (BLAKE3, SHA-256, Ed25519)"))
-    (build-tool "cargo")
-    (ci "GitHub Actions (17 workflows)"))
-
-  (design-rationale
-    (principle "Attestation is orthogonal to format"
-      (explanation "Any file type can be attested. Format handlers parse structure; the attestation engine is format-agnostic."))
-    (principle "Formally verified crypto boundary"
-      (explanation "Idris2 dependent types prove that signing and verification are consistent. The proof is erased at runtime."))
-    (principle "Provenance over point-in-time"
-      (explanation "A single signature proves current state. A provenance chain proves history. Both are first-class."))))
+[maintenance-axes]
+scoping-first = true
+axis-1 = "must > intend > like"
+axis-2 = "corrective > adaptive > perfective"
+axis-3 = "systems > compliance > effects"
