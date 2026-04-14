@@ -2,6 +2,8 @@
 # a2mliser — Add cryptographic attestation to any markup via A2ML
 
 # Default: build and test
+import? "contractile.just"
+
 default: build test
 
 # Build release binary
