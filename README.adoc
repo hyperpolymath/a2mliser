@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: PMPL-1.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
 = a2mliser — Cryptographic Attestation for Any Markup or Configuration
 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
@@ -233,6 +233,6 @@ See link:TOPOLOGY.md[TOPOLOGY.md] for the repository structure map.
 
 == License
 
-SPDX-License-Identifier: PMPL-1.0-or-later
+SPDX-License-Identifier: MPL-2.0
 
 Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath)

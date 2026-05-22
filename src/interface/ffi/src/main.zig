@@ -6,7 +6,7 @@
 // Provides: hashing (SHA-256, BLAKE3), signing (Ed25519), envelope creation,
 // provenance chain operations, and verification.
 //
-// SPDX-License-Identifier: PMPL-1.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 const std = @import("std");
 

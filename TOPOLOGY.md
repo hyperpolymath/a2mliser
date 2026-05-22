@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: PMPL-1.0-or-later -->
+<!-- SPDX-License-Identifier: MPL-2.0 -->
 <!-- Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) -->
 # a2mliser — Repository Topology
 
@@ -13,7 +13,7 @@ a2mliser/
 ├── CONTRIBUTING.adoc               # Contribution guidelines
 ├── SECURITY.md                     # Vulnerability reporting policy
 ├── CHANGELOG.md                    # Release history
-├── LICENSE                         # PMPL-1.0-or-later full text
+├── LICENSE                         # MPL-2.0 full text
 ├── Cargo.toml                      # Rust package manifest
 ├── Justfile                        # Task runner (just)
 ├── Containerfile                   # OCI container build (Chainguard base)
@@ -145,4 +145,4 @@ a2mliser/
 1. Machine-readable files live in `.machine_readable/` ONLY — never in root
 2. Idris2 ABI is the specification; Zig FFI is the implementation
 3. Generated C headers go in `src/interface/generated/abi/`
-4. All workflows are SHA-pinned, all code is PMPL-1.0-or-later
+4. All workflows are SHA-pinned, all code is MPL-2.0
