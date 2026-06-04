@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 // a2mliser FFI Implementation
 //
 // This module implements the C-compatible FFI declared in src/interface/abi/Foreign.idr.
@@ -6,7 +8,6 @@
 // Provides: hashing (SHA-256, BLAKE3), signing (Ed25519), envelope creation,
 // provenance chain operations, and verification.
 //
-// SPDX-License-Identifier: MPL-2.0
 
 const std = @import("std");
 
