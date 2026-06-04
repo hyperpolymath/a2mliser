@@ -122,7 +122,7 @@ a2mliser/
 │   │   ├── must/                   # Hard requirements
 │   │   ├── trust/                  # Trust assertions
 │   │   ├── dust/                   # Deprecation tracking
-│   │   └── lust/                   # Intent declarations
+│   │   └── intend/                   # Intent declarations
 │   ├── integrations/               # Integration configs (proven, verisimdb, etc.)
 │   ├── policies/                   # Maintenance policies and checklists
 │   └── scripts/                    # Automation scripts
