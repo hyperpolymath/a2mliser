@@ -81,7 +81,7 @@ a2mliser/
 │   └── wikis/                      # Wiki-style documentation
 │
 ├── examples/                       # USAGE EXAMPLES
-│   ├── SafeDOMExample.res          # ReScript example
+│   ├── SafeDOMExample.affine          # AffineScript example
 │   └── web-project-deno.json       # Deno project example
 │
 ├── features/                       # BDD FEATURE SPECS (Gherkin)
