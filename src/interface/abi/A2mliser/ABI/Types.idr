@@ -15,6 +15,7 @@ module A2mliser.ABI.Types
 import Data.Bits
 import Data.So
 import Data.Vect
+import Decidable.Equality
 
 %default total
 
@@ -30,10 +31,7 @@ data Platform = Linux | Windows | MacOS | BSD | WASM
 ||| This will be set during compilation based on target
 public export
 thisPlatform : Platform
-thisPlatform =
-  %runElab do
-    -- Platform detection logic
-    pure Linux  -- Default, override with compiler flags
+thisPlatform = Linux  -- Default, override with compiler flags
 
 --------------------------------------------------------------------------------
 -- Signature Algorithms
@@ -65,7 +63,8 @@ public export
 DecEq SignatureAlgorithm where
   decEq Ed25519 Ed25519 = Yes Refl
   decEq Ed448 Ed448 = Yes Refl
-  decEq _ _ = No absurd
+  decEq Ed25519 Ed448 = No (\case Refl impossible)
+  decEq Ed448 Ed25519 = No (\case Refl impossible)
 
 --------------------------------------------------------------------------------
 -- Hash Algorithms
@@ -90,7 +89,8 @@ public export
 DecEq HashAlgorithm where
   decEq SHA256 SHA256 = Yes Refl
   decEq BLAKE3 BLAKE3 = Yes Refl
-  decEq _ _ = No absurd
+  decEq SHA256 BLAKE3 = No (\case Refl impossible)
+  decEq BLAKE3 SHA256 = No (\case Refl impossible)
 
 --------------------------------------------------------------------------------
 -- Attestation Result Codes
@@ -144,7 +144,78 @@ DecEq AttestationResult where
   decEq DigestMismatch DigestMismatch = Yes Refl
   decEq ChainBroken ChainBroken = Yes Refl
   decEq KeyExpired KeyExpired = Yes Refl
-  decEq _ _ = No absurd
+  decEq Ok Error = No (\case Refl impossible)
+  decEq Ok InvalidParam = No (\case Refl impossible)
+  decEq Ok OutOfMemory = No (\case Refl impossible)
+  decEq Ok NullPointer = No (\case Refl impossible)
+  decEq Ok SignatureInvalid = No (\case Refl impossible)
+  decEq Ok DigestMismatch = No (\case Refl impossible)
+  decEq Ok ChainBroken = No (\case Refl impossible)
+  decEq Ok KeyExpired = No (\case Refl impossible)
+  decEq Error Ok = No (\case Refl impossible)
+  decEq Error InvalidParam = No (\case Refl impossible)
+  decEq Error OutOfMemory = No (\case Refl impossible)
+  decEq Error NullPointer = No (\case Refl impossible)
+  decEq Error SignatureInvalid = No (\case Refl impossible)
+  decEq Error DigestMismatch = No (\case Refl impossible)
+  decEq Error ChainBroken = No (\case Refl impossible)
+  decEq Error KeyExpired = No (\case Refl impossible)
+  decEq InvalidParam Ok = No (\case Refl impossible)
+  decEq InvalidParam Error = No (\case Refl impossible)
+  decEq InvalidParam OutOfMemory = No (\case Refl impossible)
+  decEq InvalidParam NullPointer = No (\case Refl impossible)
+  decEq InvalidParam SignatureInvalid = No (\case Refl impossible)
+  decEq InvalidParam DigestMismatch = No (\case Refl impossible)
+  decEq InvalidParam ChainBroken = No (\case Refl impossible)
+  decEq InvalidParam KeyExpired = No (\case Refl impossible)
+  decEq OutOfMemory Ok = No (\case Refl impossible)
+  decEq OutOfMemory Error = No (\case Refl impossible)
+  decEq OutOfMemory InvalidParam = No (\case Refl impossible)
+  decEq OutOfMemory NullPointer = No (\case Refl impossible)
+  decEq OutOfMemory SignatureInvalid = No (\case Refl impossible)
+  decEq OutOfMemory DigestMismatch = No (\case Refl impossible)
+  decEq OutOfMemory ChainBroken = No (\case Refl impossible)
+  decEq OutOfMemory KeyExpired = No (\case Refl impossible)
+  decEq NullPointer Ok = No (\case Refl impossible)
+  decEq NullPointer Error = No (\case Refl impossible)
+  decEq NullPointer InvalidParam = No (\case Refl impossible)
+  decEq NullPointer OutOfMemory = No (\case Refl impossible)
+  decEq NullPointer SignatureInvalid = No (\case Refl impossible)
+  decEq NullPointer DigestMismatch = No (\case Refl impossible)
+  decEq NullPointer ChainBroken = No (\case Refl impossible)
+  decEq NullPointer KeyExpired = No (\case Refl impossible)
+  decEq SignatureInvalid Ok = No (\case Refl impossible)
+  decEq SignatureInvalid Error = No (\case Refl impossible)
+  decEq SignatureInvalid InvalidParam = No (\case Refl impossible)
+  decEq SignatureInvalid OutOfMemory = No (\case Refl impossible)
+  decEq SignatureInvalid NullPointer = No (\case Refl impossible)
+  decEq SignatureInvalid DigestMismatch = No (\case Refl impossible)
+  decEq SignatureInvalid ChainBroken = No (\case Refl impossible)
+  decEq SignatureInvalid KeyExpired = No (\case Refl impossible)
+  decEq DigestMismatch Ok = No (\case Refl impossible)
+  decEq DigestMismatch Error = No (\case Refl impossible)
+  decEq DigestMismatch InvalidParam = No (\case Refl impossible)
+  decEq DigestMismatch OutOfMemory = No (\case Refl impossible)
+  decEq DigestMismatch NullPointer = No (\case Refl impossible)
+  decEq DigestMismatch SignatureInvalid = No (\case Refl impossible)
+  decEq DigestMismatch ChainBroken = No (\case Refl impossible)
+  decEq DigestMismatch KeyExpired = No (\case Refl impossible)
+  decEq ChainBroken Ok = No (\case Refl impossible)
+  decEq ChainBroken Error = No (\case Refl impossible)
+  decEq ChainBroken InvalidParam = No (\case Refl impossible)
+  decEq ChainBroken OutOfMemory = No (\case Refl impossible)
+  decEq ChainBroken NullPointer = No (\case Refl impossible)
+  decEq ChainBroken SignatureInvalid = No (\case Refl impossible)
+  decEq ChainBroken DigestMismatch = No (\case Refl impossible)
+  decEq ChainBroken KeyExpired = No (\case Refl impossible)
+  decEq KeyExpired Ok = No (\case Refl impossible)
+  decEq KeyExpired Error = No (\case Refl impossible)
+  decEq KeyExpired InvalidParam = No (\case Refl impossible)
+  decEq KeyExpired OutOfMemory = No (\case Refl impossible)
+  decEq KeyExpired NullPointer = No (\case Refl impossible)
+  decEq KeyExpired SignatureInvalid = No (\case Refl impossible)
+  decEq KeyExpired DigestMismatch = No (\case Refl impossible)
+  decEq KeyExpired ChainBroken = No (\case Refl impossible)
 
 --------------------------------------------------------------------------------
 -- Opaque Handles
@@ -160,8 +231,10 @@ data AttestationHandle : Type where
 ||| Returns Nothing if pointer is null.
 public export
 createHandle : Bits64 -> Maybe AttestationHandle
-createHandle 0 = Nothing
-createHandle ptr = Just (MkAttestationHandle ptr)
+createHandle ptr =
+  case choose (ptr /= 0) of
+    Left ok => Just (MkAttestationHandle ptr {nonNull = ok})
+    Right _ => Nothing
 
 ||| Extract pointer value from handle
 public export
@@ -207,7 +280,8 @@ data ProvenanceChain : Nat -> Type where
 ||| Get the length of a provenance chain
 public export
 chainLength : ProvenanceChain n -> Nat
-chainLength {n} _ = n
+chainLength (Root _) = 1
+chainLength (Link _ rest) = S (chainLength rest)
 
 ||| Get the most recent (leaf) envelope in the chain
 public export
@@ -268,9 +342,10 @@ data HasAlignment : Type -> Nat -> Type where
 
 ||| Size of C types (platform-specific)
 public export
+||| Note: `CInt p` and `CSize p` reduce to concrete primitive types
+||| (Bits32 / Bits64), so they are covered by the primitive cases below;
+||| a type-function application like `CInt _` cannot be pattern-matched.
 cSizeOf : (p : Platform) -> (t : Type) -> Nat
-cSizeOf p (CInt _) = 4
-cSizeOf p (CSize _) = if ptrSize p == 64 then 8 else 4
 cSizeOf p Bits32 = 4
 cSizeOf p Bits64 = 8
 cSizeOf p Double = 8
@@ -279,8 +354,6 @@ cSizeOf p _ = ptrSize p `div` 8
 ||| Alignment of C types (platform-specific)
 public export
 cAlignOf : (p : Platform) -> (t : Type) -> Nat
-cAlignOf p (CInt _) = 4
-cAlignOf p (CSize _) = if ptrSize p == 64 then 8 else 4
 cAlignOf p Bits32 = 4
 cAlignOf p Bits64 = 8
 cAlignOf p Double = 8
@@ -308,7 +381,7 @@ record EnvelopeHeader where
   ||| Whether a parent digest is present (0 = no, 1 = yes)
   hasParent : Bits32
   ||| Padding for alignment
-  _pad : Bits32
+  padField : Bits32
 
 ||| Prove the envelope header has correct size (32 bytes)
 public export
