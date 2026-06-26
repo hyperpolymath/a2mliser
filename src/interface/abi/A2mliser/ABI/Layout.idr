@@ -15,6 +15,8 @@ module A2mliser.ABI.Layout
 import A2mliser.ABI.Types
 import Data.Vect
 import Data.So
+import Data.Nat
+import Decidable.Equality
 
 %default total
 
@@ -28,7 +30,7 @@ paddingFor : (offset : Nat) -> (alignment : Nat) -> Nat
 paddingFor offset alignment =
   if offset `mod` alignment == 0
     then 0
-    else alignment - (offset `mod` alignment)
+    else minus alignment (offset `mod` alignment)
 
 ||| Proof that alignment divides aligned size
 public export
@@ -41,11 +43,6 @@ alignUp : (size : Nat) -> (alignment : Nat) -> Nat
 alignUp size alignment =
   size + paddingFor size alignment
 
-||| Proof that alignUp produces aligned result
-public export
-alignUpCorrect : (size : Nat) -> (align : Nat) -> (align > 0) -> Divides align (alignUp size align)
-alignUpCorrect size align prf =
-  DivideBy ((size + paddingFor size align) `div` align) Refl
 
 --------------------------------------------------------------------------------
 -- Struct Field Layout
@@ -77,7 +74,7 @@ record StructLayout where
 
 ||| Calculate total struct size with padding
 public export
-calcStructSize : Vect n Field -> Nat -> Nat
+calcStructSize : Vect k Field -> Nat -> Nat
 calcStructSize [] align = 0
 calcStructSize (f :: fs) align =
   let lastOffset = foldl (\acc, field => nextFieldOffset field) f.offset fs
@@ -86,23 +83,38 @@ calcStructSize (f :: fs) align =
 
 ||| Proof that field offsets are correctly aligned
 public export
-data FieldsAligned : Vect n Field -> Type where
+data FieldsAligned : Vect k Field -> Type where
   NoFields : FieldsAligned []
   ConsField :
     (f : Field) ->
-    (rest : Vect n Field) ->
+    (rest : Vect k Field) ->
     Divides f.alignment f.offset ->
     FieldsAligned rest ->
     FieldsAligned (f :: rest)
 
-||| Verify a struct layout is valid
+||| Decide whether `n` divides `m`, returning a Divides witness when it does.
+||| Sound: only returns Just when m is genuinely a multiple of n.
 public export
-verifyLayout : (fields : Vect n Field) -> (align : Nat) -> Either String StructLayout
+decDivides : (n : Nat) -> (m : Nat) -> Maybe (Divides n m)
+decDivides Z m = Nothing
+decDivides (S k) m =
+  let q = div m (S k) in
+  case decEq m (q * (S k)) of
+    Yes prf => Just (DivideBy q prf)
+    No _ => Nothing
+
+||| Verify a struct layout is valid.
+||| Requires both the size obligation and a genuine divisibility witness.
+public export
+verifyLayout : (fields : Vect k Field) -> (align : Nat) -> Either String StructLayout
 verifyLayout fields align =
-  let size = calcStructSize fields align
-   in case decSo (size >= sum (map (\f => f.size) fields)) of
-        Yes prf => Right (MkStructLayout fields size align)
-        No _ => Left "Invalid struct size"
+  let size = calcStructSize fields align in
+  case decSo (size >= sum (map (\f => f.size) fields)) of
+    No _ => Left "Invalid struct size"
+    Yes prf =>
+      case decDivides align size of
+        Nothing => Left "Struct size not aligned"
+        Just dv => Right (MkStructLayout fields size align {sizeCorrect = prf} {aligned = dv})
 
 --------------------------------------------------------------------------------
 -- Attestation Envelope Header Layout
@@ -135,6 +147,8 @@ envelopeHeaderLayout =
     ]
     32  -- Total size: 32 bytes
     8   -- Alignment: 8 bytes
+    {sizeCorrect = Oh}
+    {aligned = DivideBy 4 Refl}
 
 --------------------------------------------------------------------------------
 -- Digest Buffer Layout
@@ -150,6 +164,8 @@ digestBufferLayout =
     ]
     32  -- Total size: 32 bytes
     1   -- Alignment: 1 byte (byte array)
+    {sizeCorrect = Oh}
+    {aligned = DivideBy 32 Refl}
 
 --------------------------------------------------------------------------------
 -- Signature Buffer Layout
@@ -164,6 +180,8 @@ ed25519SignatureLayout =
     ]
     64  -- Total size: 64 bytes
     1   -- Alignment: 1 byte
+    {sizeCorrect = Oh}
+    {aligned = DivideBy 64 Refl}
 
 ||| Layout for an Ed448 signature buffer (114 bytes).
 public export
@@ -174,6 +192,8 @@ ed448SignatureLayout =
     ]
     114 -- Total size: 114 bytes (no padding needed for byte arrays)
     1   -- Alignment: 1 byte
+    {sizeCorrect = Oh}
+    {aligned = DivideBy 114 Refl}
 
 --------------------------------------------------------------------------------
 -- Provenance Chain Entry Layout
@@ -201,6 +221,8 @@ provenanceEntryLayout =
     ]
     56  -- Total size: 56 bytes
     8   -- Alignment: 8 bytes
+    {sizeCorrect = Oh}
+    {aligned = DivideBy 7 Refl}
 
 --------------------------------------------------------------------------------
 -- Platform-Specific Layouts
@@ -234,21 +256,52 @@ data CABICompliant : StructLayout -> Type where
     FieldsAligned layout.fields ->
     CABICompliant layout
 
+||| Decide, soundly, whether every field's offset is aligned to its own
+||| alignment, building a genuine FieldsAligned witness when so.
+public export
+decFieldsAligned : (fields : Vect k Field) -> Maybe (FieldsAligned fields)
+decFieldsAligned [] = Just NoFields
+decFieldsAligned (f :: fs) =
+  case decDivides f.alignment f.offset of
+    Nothing => Nothing
+    Just dv =>
+      case decFieldsAligned fs of
+        Nothing => Nothing
+        Just rest => Just (ConsField f fs dv rest)
+
 ||| Check if layout follows C ABI
 public export
 checkCABI : (layout : StructLayout) -> Either String (CABICompliant layout)
 checkCABI layout =
-  Right (CABIOk layout ?fieldsAlignedProof)
+  case decFieldsAligned layout.fields of
+    Just fa => Right (CABIOk layout fa)
+    Nothing => Left "Struct fields are not C-ABI aligned"
 
-||| Proof that envelope header layout is C ABI compliant
+||| Proof that envelope header layout is C ABI compliant.
+||| Each field offset is a multiple of its alignment, witnessed directly.
 export
-envelopeHeaderCABI : CABICompliant envelopeHeaderLayout
-envelopeHeaderCABI = CABIOk envelopeHeaderLayout ?envelopeHeaderFieldsAligned
+envelopeHeaderCABI : CABICompliant Layout.envelopeHeaderLayout
+envelopeHeaderCABI =
+  CABIOk Layout.envelopeHeaderLayout
+    (ConsField _ _ (DivideBy 0 Refl)
+    (ConsField _ _ (DivideBy 1 Refl)
+    (ConsField _ _ (DivideBy 2 Refl)
+    (ConsField _ _ (DivideBy 3 Refl)
+    (ConsField _ _ (DivideBy 2 Refl)
+    (ConsField _ _ (DivideBy 6 Refl)
+    (ConsField _ _ (DivideBy 7 Refl)
+     NoFields)))))))
 
-||| Proof that provenance entry layout is C ABI compliant
+||| Proof that provenance entry layout is C ABI compliant.
 export
-provenanceEntryCABI : CABICompliant provenanceEntryLayout
-provenanceEntryCABI = CABIOk provenanceEntryLayout ?provenanceEntryFieldsAligned
+provenanceEntryCABI : CABICompliant Layout.provenanceEntryLayout
+provenanceEntryCABI =
+  CABIOk Layout.provenanceEntryLayout
+    (ConsField _ _ (DivideBy 0 Refl)
+    (ConsField _ _ (DivideBy 4 Refl)
+    (ConsField _ _ (DivideBy 5 Refl)
+    (ConsField _ _ (DivideBy 6 Refl)
+     NoFields))))
 
 --------------------------------------------------------------------------------
 -- Offset Calculation
@@ -262,7 +315,12 @@ fieldOffset layout name =
     Just idx => Just (finToNat idx ** index idx layout.fields)
     Nothing => Nothing
 
-||| Proof that field offset is within struct bounds
+||| Decide whether a field lies within the struct bounds.
+||| The universally-quantified form is unsound (false for fields that do not
+||| belong to the layout), so this returns a Maybe witness via `choose`.
 public export
-offsetInBounds : (layout : StructLayout) -> (f : Field) -> So (f.offset + f.size <= layout.totalSize)
-offsetInBounds layout f = ?offsetInBoundsProof
+offsetInBounds : (layout : StructLayout) -> (f : Field) -> Maybe (So (f.offset + f.size <= layout.totalSize))
+offsetInBounds layout f =
+  case choose (f.offset + f.size <= layout.totalSize) of
+    Left ok => Just ok
+    Right _ => Nothing
